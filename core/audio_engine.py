@@ -1,9 +1,13 @@
 import torch
 import numpy as np
 import time
+import os
+from dotenv import load_dotenv
 from faster_whisper import WhisperModel
 from transformers import pipeline
 from .schema import AudioEmotion
+
+load_dotenv()
 
 class AudioEngine:
     def __init__(self, whisper_model_size="tiny", emotion_model_id="harshit345/wav2vec2-base-finetuned-emotion"):
@@ -15,8 +19,11 @@ class AudioEngine:
         self.whisper = WhisperModel(whisper_model_size, device="cpu", compute_type="int8")
         
         # Audio Classification Pipeline (Wav2Vec2)
+        # Load token from environment
+        hf_token = os.getenv("HF_TOKEN")
+        
         # This will download the model (~300MB) on first run
-        self.classifier = pipeline("audio-classification", model=emotion_model_id)
+        self.classifier = pipeline("audio-classification", model=emotion_model_id, token=hf_token)
         
         self.sample_rate = 16000
         self.buffer = np.array([], dtype=np.float32)
