@@ -16,7 +16,7 @@ class VisionEngine:
         options = vision.FaceLandmarkerOptions(
             base_options=base_options,
             output_face_blendshapes=True,
-            output_face_transformation_matrixes=True,
+            output_facial_transformation_matrixes=True,
             running_mode=vision.RunningMode.VIDEO)
         self.detector = vision.FaceLandmarker.create_from_options(options)
         self.fps_throttle = 1  # Logic can be adjusted for performance
