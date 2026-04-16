@@ -1,0 +1,50 @@
+@import url("https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&display=swap");
+
+:root {
+  --bg-deep: #050505;
+  --accent-glow: #fbbf24;
+  --card-bg: rgba(255, 255, 255, 0.03);
+  --text-main: #f8fafc;
+  --text-dim: #94a3b8;
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  font-family: Syne, system-ui, sans-serif;
+  color: var(--text-main);
+  background: radial-gradient(
+        circle at 20% 20%,
+        rgba(251, 191, 36, 0.05) 0%,
+        transparent 40%
+      ),
+    radial-gradient(
+        circle at 80% 80%,
+        rgba(99, 102, 241, 0.05) 0%,
+        transparent 40%
+      ),
+    var(--bg-deep);
+}
+
+#root {
+  min-height: 100vh;
+}
+
+h1,
+h2,
+h3,
+p,
+label {
+  font-family: Syne, system-ui, sans-serif;
+}
