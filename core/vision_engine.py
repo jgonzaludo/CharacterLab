@@ -51,12 +51,17 @@ class VisionEngine:
     def _map_to_emotion(self, bs: dict):
         """
         Heuristic mapping of MediaPipe Blendshapes to discrete emotions.
+        Adjusted for sensitivity:
+        - Surprise: Decreased sensitivity (requires more brow/eye wideness)
+        - Anger: Increased sensitivity (added eye squinting)
         """
         scores = {
             "Joy": (bs.get("mouthSmileLeft", 0) + bs.get("mouthSmileRight", 0)) / 2,
             "Sadness": (bs.get("browInnerUp", 0) + bs.get("mouthFrownLeft", 0) + bs.get("mouthFrownRight", 0)) / 3,
-            "Anger": (bs.get("browDownLeft", 0) + bs.get("browDownRight", 0) + bs.get("mouthPressLeft", 0)) / 3,
-            "Surprise": (bs.get("browOuterUpLeft", 0) + bs.get("browOuterUpRight", 0) + bs.get("jawOpen", 0)) / 3,
+            "Anger": (bs.get("browDownLeft", 0) + bs.get("browDownRight", 0) + 
+                      bs.get("eyeSquintLeft", 0) + bs.get("eyeSquintRight", 0)) / 3.2, # Boosted sensitivity
+            "Surprise": (bs.get("browOuterUpLeft", 0) + bs.get("browOuterUpRight", 0) + 
+                         bs.get("eyeWideLeft", 0) + bs.get("eyeWideRight", 0) + bs.get("jawOpen", 0)) / 4.5, # Reduced sensitivity
             "Disgust": (bs.get("noseSneerLeft", 0) + bs.get("noseSneerRight", 0)) / 2,
             "Fear": (bs.get("browInnerUp", 0) + bs.get("eyeWideLeft", 0) + bs.get("eyeWideRight", 0)) / 3,
         }
@@ -64,7 +69,8 @@ class VisionEngine:
         primary = max(scores, key=scores.get)
         confidence = scores[primary]
         
-        if confidence < 0.15:
+        # Increase Neutral threshold to avoid flickering
+        if confidence < 0.20:
             return "Neutral", 1.0
             
         return primary, confidence
