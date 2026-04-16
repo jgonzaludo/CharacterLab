@@ -18,29 +18,122 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
+# Custom Theatrical Styling
 st.markdown("""
 <style>
-    .reportview-container {
-        background: #0f1117;
-    }
-    .main {
-        background: #0f1117;
-        color: #e0e0e0;
-    }
-    .stMetric {
-        background: rgba(255, 255, 255, 0.05);
-        padding: 15px;
-        border-radius: 10px;
-        border-left: 5px solid #6366f1;
-    }
-    h1, h2, h3 {
-        color: #ffffff !important;
-    }
-</style>
-""", unsafe_allow_html=True)
+    @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&display=swap');
 
-st.title("🎭 CharacterLab: Real-Time Emotion Mirror")
-st.caption("Phase 1: Multimodal Sensing Foundation")
+    :root {
+        --bg-deep: #050505;
+        --accent-glow: #fbbf24; /* Amber Spotlight */
+        --card-bg: rgba(255, 255, 255, 0.03);
+        --text-main: #f8fafc;
+        --text-dim: #94a3b8;
+    }
+
+    .stApp {
+        background: radial-gradient(circle at 20% 20%, rgba(251, 191, 36, 0.05) 0%, transparent 40%),
+                    radial-gradient(circle at 80% 80%, rgba(99, 102, 241, 0.05) 0%, transparent 40%),
+                    var(--bg-deep);
+        color: var(--text-main);
+        font-family: 'Syne', sans-serif;
+    }
+
+    h1, h2, h3, p, span, div {
+        font-family: 'Syne', sans-serif !important;
+    }
+
+    .main-title {
+        font-size: 3.5rem;
+        font-weight: 800;
+        letter-spacing: -2px;
+        background: linear-gradient(to right, #ffffff, #94a3b8);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 0rem;
+        animation: fadeInDown 0.8s ease-out;
+    }
+
+    .sub-title {
+        color: var(--accent-glow);
+        text-transform: uppercase;
+        letter-spacing: 4px;
+        font-size: 0.8rem;
+        font-weight: 700;
+        margin-bottom: 2rem;
+        animation: fadeInDown 1s ease-out;
+    }
+
+    /* Glassmorphism Cards */
+    .emotion-card {
+        background: var(--card-bg);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(12px);
+        padding: 24px;
+        border-radius: 20px;
+        margin-bottom: 20px;
+        transition: all 0.3s ease;
+        animation: fadeInUp 0.6s ease-out both;
+    }
+    
+    .emotion-card:hover {
+        border-color: var(--accent-glow);
+        transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+
+    .metric-label {
+        color: var(--text-dim);
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .metric-value {
+        color: var(--text-main);
+        font-size: 2rem;
+        font-weight: 800;
+        margin-top: 5px;
+    }
+
+    .metric-delta {
+        color: var(--accent-glow);
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+
+    /* Video Container Styling */
+    .element-container iframe, .stWebRtcStreamer {
+        border-radius: 24px;
+        border: 2px solid rgba(255,255,255,0.05);
+        overflow: hidden;
+        box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+    }
+
+    /* Animation Keyframes */
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(30px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeInDown {
+        from { opacity: 0; transform: translateY(-20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Hide generic Streamlit elements */
+    #MainMenu, footer, header {visibility: hidden;}
+    .stDeployButton {display:none;}
+    
+    /* Staggered load effect */
+    .st-emotion-1 { animation-delay: 0.1s; }
+    .st-emotion-2 { animation-delay: 0.2s; }
+    .st-emotion-3 { animation-delay: 0.3s; }
+</style>
+
+<div class="main-title">CharacterLab</div>
+<div class="sub-title">Phase 1: Deep Sensing Neural Mirror</div>
+""", unsafe_allow_html=True)
 
 # --- Shared State for Callbacks ---
 class AppState:
@@ -117,8 +210,6 @@ with col_vid:
     )
 
 with col_stats:
-    st.subheader("Live Analysis")
-    
     v_metric = st.empty()
     a_metric = st.empty()
     transcription_box = st.empty()
@@ -132,7 +223,13 @@ if webrtc_ctx.state.playing:
         # Update Vision Metrics
         if app_state.vision_result:
             vs = app_state.vision_result
-            v_metric.metric("Facial Vibe", vs.primary_emotion, f"{vs.confidence:.1%} match")
+            v_metric.markdown(f"""
+                <div class="emotion-card st-emotion-1">
+                    <div class="metric-label">Facial Vibe</div>
+                    <div class="metric-value">{vs.primary_emotion}</div>
+                    <div class="metric-delta">{vs.confidence:.1%} match</div>
+                </div>
+            """, unsafe_allow_html=True)
             
             # Show top 5 blendshapes
             top_bs = dict(sorted(vs.blendshapes.items(), key=lambda x: x[1], reverse=True)[:5])
@@ -141,7 +238,21 @@ if webrtc_ctx.state.playing:
         # Update Audio Metrics
         if app_state.audio_result:
             as_ = app_state.audio_result
-            a_metric.metric("Vocal Vibe", as_.primary_emotion, f"{as_.confidence:.1%} match")
-            transcription_box.success(f"**Transcript:** {as_.transcription}")
+            a_metric.markdown(f"""
+                <div class="emotion-card st-emotion-2">
+                    <div class="metric-label">Vocal Vibe</div>
+                    <div class="metric-value">{as_.primary_emotion}</div>
+                    <div class="metric-delta">{as_.confidence:.1%} match</div>
+                </div>
+            """, unsafe_allow_html=True)
+            
+            transcription_box.markdown(f"""
+                <div class="emotion-card st-emotion-3">
+                    <div class="metric-label">Live Transcript</div>
+                    <div class="metric-value" style="font-size: 1.1rem; line-height: 1.5; color: var(--accent-glow);">
+                        "{as_.transcription}"
+                    </div>
+                </div>
+            """, unsafe_allow_html=True)
 
         time.sleep(0.1)
