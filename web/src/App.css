@@ -135,7 +135,6 @@
   backdrop-filter: blur(12px);
   padding: 24px;
   border-radius: 20px;
-  margin-bottom: 12px;
   text-align: center;
   transition: border-color 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;
   animation: fadeInUp 0.6s ease-out both;
@@ -173,63 +172,6 @@
   font-size: 0.85rem;
   font-weight: 600;
   margin-top: 6px;
-}
-
-.blendshape-list {
-  background: var(--card-bg);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 16px;
-  padding: 16px;
-}
-
-.blendshape-empty {
-  margin: 0;
-  font-size: 0.85rem;
-  color: #6b7280;
-}
-
-.bs-row {
-  display: flex;
-  align-items: center;
-  margin-bottom: 8px;
-  gap: 10px;
-}
-
-.bs-row:last-child {
-  margin-bottom: 0;
-}
-
-.bs-name {
-  font-size: 0.72rem;
-  color: #9ca3af;
-  width: 160px;
-  flex-shrink: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.bs-bar-bg {
-  flex: 1;
-  height: 6px;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.bs-bar-fill {
-  height: 100%;
-  border-radius: 4px;
-  background: linear-gradient(90deg, #6366f1, #8b5cf6);
-  transition: width 0.12s ease-out;
-}
-
-.bs-val {
-  font-size: 0.7rem;
-  color: #6b7280;
-  width: 34px;
-  text-align: right;
-  flex-shrink: 0;
 }
 
 @keyframes fadeInUp {

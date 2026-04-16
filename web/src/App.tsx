@@ -193,12 +193,6 @@ function App() {
     return () => cancelAnimationFrame(raf);
   }, [engineReady, mirror]);
 
-  const topBlendshapes = vision
-    ? Object.entries(vision.blendshapes)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 8)
-    : [];
-
   return (
     <div className="app-root">
       {loadError && (
@@ -269,31 +263,6 @@ function App() {
                 <div className="emotion-value muted">—</div>
                 <div className="emotion-conf">Waiting for camera…</div>
               </>
-            )}
-          </div>
-
-          <div className="section-label">Top Blendshapes</div>
-          <div className="blendshape-list">
-            {topBlendshapes.length === 0 ? (
-              <p className="blendshape-empty">No face data yet.</p>
-            ) : (
-              topBlendshapes.map(([name, val]) => {
-                const pct = Math.round(val * 100);
-                return (
-                  <div className="bs-row" key={name}>
-                    <span className="bs-name" title={name}>
-                      {name}
-                    </span>
-                    <div className="bs-bar-bg">
-                      <div
-                        className="bs-bar-fill"
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
-                    <span className="bs-val">{pct}%</span>
-                  </div>
-                );
-              })
             )}
           </div>
         </aside>
