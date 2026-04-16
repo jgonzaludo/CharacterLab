@@ -104,12 +104,10 @@ def audio_frame_callback(frame: av.AudioFrame) -> av.AudioFrame:
     return frame
 
 # --- UI Layout ---
-st.sidebar.header("Controls")
-app_state.flip_camera = st.sidebar.checkbox("Flip Camera (Mirror Mode)", value=True)
-
 col_vid, col_stats = st.columns([2, 1])
 
 with col_vid:
+    app_state.flip_camera = st.checkbox("Flip Camera (Mirror Mode)", value=True)
     webrtc_ctx = webrtc_streamer(
         key="emotion-mirror",
         mode=WebRtcMode.SENDRECV,
