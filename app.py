@@ -45,6 +45,8 @@ st.caption("Phase 1: Multimodal Sensing Foundation")
 # --- Shared State for Callbacks ---
 class AppState:
     flip_camera = False
+    vision_result = None
+    audio_result = None
 
 app_state = AppState()
 
@@ -58,10 +60,6 @@ try:
 except Exception as e:
     st.error(f"Error loading engines: {e}")
     st.stop()
-
-# --- Communication Queues ---
-vision_queue = queue.Queue()
-audio_queue = queue.Queue()
 
 # --- Callbacks ---
 def video_frame_callback(frame: av.VideoFrame) -> av.VideoFrame:
@@ -78,7 +76,7 @@ def video_frame_callback(frame: av.VideoFrame) -> av.VideoFrame:
     try:
         vision_state = vision_engine.process_frame(rgb_img, timestamp_ms)
         if vision_state:
-            vision_queue.put(vision_state)
+            app_state.vision_result = vision_state
             
             # Simple Mesh/Text Overlay
             color = (0, 255, 0) if vision_state.primary_emotion != "Neutral" else (200, 200, 200)
@@ -97,7 +95,7 @@ def audio_frame_callback(frame: av.AudioFrame) -> av.AudioFrame:
         # Pass the actual sample rate to handle resampling
         audio_state = audio_engine.process_audio(audio_data, source_sr=frame.sample_rate)
         if audio_state:
-            audio_queue.put(audio_state)
+            app_state.audio_result = audio_state
     except Exception as e:
         print(f"Audio error: {e}")
         
@@ -132,8 +130,8 @@ with col_stats:
 if webrtc_ctx.state.playing:
     while True:
         # Update Vision Metrics
-        if not vision_queue.empty():
-            vs = vision_queue.get()
+        if app_state.vision_result:
+            vs = app_state.vision_result
             v_metric.metric("Facial Vibe", vs.primary_emotion, f"{vs.confidence:.1%} match")
             
             # Show top 5 blendshapes
@@ -141,8 +139,8 @@ if webrtc_ctx.state.playing:
             bs_chart.write(top_bs)
 
         # Update Audio Metrics
-        if not audio_queue.empty():
-            as_ = audio_queue.get()
+        if app_state.audio_result:
+            as_ = app_state.audio_result
             a_metric.metric("Vocal Vibe", as_.primary_emotion, f"{as_.confidence:.1%} match")
             transcription_box.success(f"**Transcript:** {as_.transcription}")
 
