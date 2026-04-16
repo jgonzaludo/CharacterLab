@@ -10,7 +10,7 @@ from .schema import AudioEmotion
 load_dotenv()
 
 class AudioEngine:
-    def __init__(self, whisper_model_size="tiny", emotion_model_id="harshit345/wav2vec2-base-finetuned-emotion"):
+    def __init__(self, whisper_model_size="tiny", emotion_model_id="harshit345/xlsr-wav2vec-speech-emotion-recognition"):
         """
         Initializes Faster-Whisper and Transformers pipeline for audio analysis.
         Uses Wav2Vec2 for emotion detection to avoid proprietary SpeechBrain lazy import issues.
