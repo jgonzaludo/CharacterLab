@@ -19,56 +19,99 @@ st.set_page_config(
 
 st.markdown("""
 <style>
-    html, body, [data-testid="stAppViewContainer"] {
-        background-color: #0a0b0f;
-        color: #e0e0e0;
-    }
-    [data-testid="stHeader"] { background: transparent; }
-    [data-testid="stToolbar"] { display: none; }
-    .block-container { padding-top: 2rem; padding-bottom: 1rem; }
+    @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&display=swap');
 
-    h1 {
-        font-size: 1.8rem !important;
-        font-weight: 700 !important;
-        color: #ffffff !important;
-        letter-spacing: -0.5px;
-    }
-    .subtitle {
-        color: #6b7280;
-        font-size: 0.85rem;
-        margin-top: -12px;
-        margin-bottom: 20px;
+    :root {
+        --bg-deep: #050505;
+        --accent-glow: #fbbf24;
+        --card-bg: rgba(255, 255, 255, 0.03);
+        --text-main: #f8fafc;
+        --text-dim: #94a3b8;
     }
 
-    hr { border-color: #1f2130; }
+    .stApp {
+        background: radial-gradient(circle at 20% 20%, rgba(251, 191, 36, 0.05) 0%, transparent 40%),
+                    radial-gradient(circle at 80% 80%, rgba(99, 102, 241, 0.05) 0%, transparent 40%),
+                    var(--bg-deep);
+        color: var(--text-main);
+        font-family: 'Syne', sans-serif !important;
+    }
+
+    .stApp h1, .stApp h2, .stApp h3, .stApp p, .stApp label, .main-title, .sub-title, .emotion-card {
+        font-family: 'Syne', sans-serif !important;
+    }
+
+    .main-title {
+        font-size: 3.5rem;
+        font-weight: 800;
+        letter-spacing: -2px;
+        background: linear-gradient(to right, #ffffff, #94a3b8);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 0rem;
+        animation: fadeInDown 0.8s ease-out;
+    }
+
+    .sub-title {
+        color: var(--accent-glow);
+        text-transform: uppercase;
+        letter-spacing: 4px;
+        font-size: 0.8rem;
+        font-weight: 700;
+        margin-bottom: 2rem;
+        animation: fadeInDown 1s ease-out;
+    }
 
     .emotion-card {
-        background: linear-gradient(135deg, #1a1b2e 0%, #16172a 100%);
-        border: 1px solid #2a2b3d;
-        border-radius: 12px;
-        padding: 20px 24px;
-        margin-bottom: 16px;
+        background: var(--card-bg);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(12px);
+        padding: 24px;
+        border-radius: 20px;
+        margin-bottom: 20px;
+        transition: all 0.3s ease;
+        animation: fadeInUp 0.6s ease-out both;
         text-align: center;
     }
-    .emotion-label {
-        font-size: 0.7rem;
-        font-weight: 600;
-        letter-spacing: 2px;
-        text-transform: uppercase;
-        color: #6b7280;
-        margin-bottom: 6px;
+
+    .emotion-card:hover {
+        border-color: var(--accent-glow);
+        transform: translateY(-3px);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
     }
+
+    .emotion-label {
+        color: var(--text-dim);
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        margin-bottom: 8px;
+    }
+
     .emotion-value {
         font-size: 2.2rem;
-        font-weight: 700;
-        color: #ffffff;
+        font-weight: 800;
+        color: var(--text-main);
         line-height: 1.1;
+        margin-top: 4px;
     }
+
     .emotion-conf {
-        font-size: 0.8rem;
-        color: #6366f1;
+        color: var(--accent-glow);
+        font-size: 0.85rem;
+        font-weight: 600;
         margin-top: 6px;
-        font-weight: 500;
+    }
+
+    .section-label {
+        font-size: 0.65rem;
+        font-weight: 700;
+        letter-spacing: 3px;
+        text-transform: uppercase;
+        color: #4b5563;
+        margin-bottom: 10px;
+        margin-top: 6px;
     }
 
     .bs-row {
@@ -89,7 +132,7 @@ st.markdown("""
     .bs-bar-bg {
         flex: 1;
         height: 6px;
-        background: #1f2130;
+        background: rgba(255,255,255,0.05);
         border-radius: 4px;
         overflow: hidden;
     }
@@ -106,14 +149,11 @@ st.markdown("""
         flex-shrink: 0;
     }
 
-    .section-label {
-        font-size: 0.65rem;
-        font-weight: 700;
-        letter-spacing: 2px;
-        text-transform: uppercase;
-        color: #4b5563;
-        margin-bottom: 12px;
-        margin-top: 8px;
+    .element-container iframe, .stWebRtcStreamer {
+        border-radius: 24px;
+        border: 2px solid rgba(255,255,255,0.05);
+        overflow: hidden;
+        box-shadow: 0 20px 50px rgba(0,0,0,0.8);
     }
 
     [data-testid="stCheckbox"] label {
@@ -121,32 +161,28 @@ st.markdown("""
         color: #6b7280 !important;
     }
 
-    footer { display: none; }
-    #MainMenu { display: none; }
-
-    button[kind="primary"] {
-        background: #6366f1 !important;
-        border: none !important;
-        border-radius: 8px !important;
-        font-weight: 600 !important;
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(30px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeInDown {
+        from { opacity: 0; transform: translateY(-20px); }
+        to { opacity: 1; transform: translateY(0); }
     }
 
-    [data-testid="stExpander"] {
-        border: 1px solid #1f2130 !important;
-        border-radius: 10px !important;
-        background: #0e0f18 !important;
-    }
+    #MainMenu, footer, header { visibility: hidden; }
+    .stDeployButton { display: none; }
 </style>
-""", unsafe_allow_html=True)
 
-# --- Header ---
-st.markdown("<h1>🎭 CharacterLab</h1>", unsafe_allow_html=True)
-st.markdown('<p class="subtitle">Real-Time Emotion Mirror &nbsp;·&nbsp; Vision Engine</p>', unsafe_allow_html=True)
+<div class="main-title">CharacterLab</div>
+<div class="sub-title">Real-Time Emotion Mirror · Vision Engine</div>
+""", unsafe_allow_html=True)
 
 # --- Shared State ---
 class AppState:
     flip_camera = True
     vision_result = None
+
 app_state = AppState()
 
 # --- Engine Initialization ---
@@ -174,6 +210,7 @@ EMOTION_COLOR = {
     "Fear":     "#fb923c",
     "Neutral":  "#9ca3af",
 }
+
 # --- Callbacks ---
 def video_frame_callback(frame: av.VideoFrame) -> av.VideoFrame:
     img = frame.to_ndarray(format="bgr24")
@@ -213,13 +250,11 @@ with col_vid:
     )
 
 with col_stats:
-    # Vision
     st.markdown('<div class="section-label">Face</div>', unsafe_allow_html=True)
     emotion_card = st.empty()
     st.markdown('<div class="section-label">Top Blendshapes</div>', unsafe_allow_html=True)
     bs_container = st.empty()
 
-    # Idle placeholders
     emotion_card.markdown("""
         <div class="emotion-card">
             <div class="emotion-label">Detected Emotion</div>
@@ -231,7 +266,6 @@ with col_stats:
 # --- Update Loop ---
 if webrtc_ctx.state.playing:
     while True:
-        # Vision
         vs = app_state.vision_result
         if vs:
             emotion = vs.primary_emotion
