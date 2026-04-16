@@ -1,5 +1,4 @@
 mediapipe
-speechbrain
 faster-whisper
 streamlit
 streamlit-webrtc
@@ -7,3 +6,7 @@ av
 pydantic
 numpy
 opencv-python
+transformers
+torch
+torchaudio
+librosa
