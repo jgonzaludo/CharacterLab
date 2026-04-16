@@ -36,10 +36,11 @@ st.markdown("""
                     radial-gradient(circle at 80% 80%, rgba(99, 102, 241, 0.05) 0%, transparent 40%),
                     var(--bg-deep);
         color: var(--text-main);
-        font-family: 'Syne', sans-serif;
+        font-family: 'Syne', sans-serif !important;
     }
 
-    h1, h2, h3, p, span, div {
+    /* Target specific text elements to avoid breaking icons/expanders */
+    .stApp h1, .stApp h2, .stApp h3, .stApp p, .stApp label, .main-title, .sub-title, .emotion-card {
         font-family: 'Syne', sans-serif !important;
     }
 
