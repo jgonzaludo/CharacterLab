@@ -1,274 +1,236 @@
 import { useEffect, useRef, useState } from "react";
-import {
-  FaceLandmarker,
-  FilesetResolver,
-  type FaceLandmarkerResult,
-} from "@mediapipe/tasks-vision";
-import { EMOTION_COLOR, EMOTION_EMOJI, FACE_LANDMARKER_MODEL_URL, MEDIAPIPE_WASM_ROOT } from "./constants";
-import { mapBlendshapesToEmotion } from "./emotionFromBlendshapes";
-import type { VisionEmotion } from "./types";
+import { Disclaimer } from "./components/Disclaimer";
+import { FeedbackSection } from "./components/FeedbackSection";
+import { RecorderPanel } from "./components/RecorderPanel";
+import { ScriptPanel } from "./components/ScriptPanel";
+import { useFaceLandmarkerAnalysis } from "./hooks/useFaceLandmarkerAnalysis";
+import { metricsFromRecording } from "./lib/audioMetrics";
+import { generateRehearsalFeedbackFromBlob } from "./lib/rehearsalFeedback";
+import { DEFAULT_GEMINI_MODEL } from "./lib/geminiModels";
+import { pickAudioRecorderMime } from "./lib/recordingMime";
+import type {
+  FacialTakeSummary,
+  RehearsalFeedbackResult,
+  SuggestionRating,
+} from "./types";
 import "./App.css";
 
-function classificationsToBlendshapes(result: FaceLandmarkerResult): Record<string, number> | null {
-  const first = result.faceBlendshapes?.[0];
-  if (!first?.categories?.length) return null;
-  const out: Record<string, number> = {};
-  for (const c of first.categories) {
-    out[c.categoryName] = c.score;
-  }
-  return out;
-}
-
-function App() {
+export default function App() {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const landmarkerRef = useRef<FaceLandmarker | null>(null);
-  const lastUiMsRef = useRef(0);
+  const streamRef = useRef<MediaStream | null>(null);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
 
+  const scriptRef = useRef("");
+  const intendedRef = useRef("");
+  const guidanceRef = useRef(50);
+
+  const [script, setScript] = useState("");
+  const [intendedDirection, setIntendedDirection] = useState("");
   const [mirror, setMirror] = useState(true);
-  const [vision, setVision] = useState<VisionEmotion | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [cameraError, setCameraError] = useState<string | null>(null);
-  const [engineReady, setEngineReady] = useState(false);
+  const [streamReady, setStreamReady] = useState(false);
+  const [mediaError, setMediaError] = useState<string | null>(null);
+
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingMs, setRecordingMs] = useState(0);
+
+  const [guidanceSlider, setGuidanceSlider] = useState(50);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [feedbackError, setFeedbackError] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<RehearsalFeedbackResult | null>(null);
+  const [ratings, setRatings] = useState<Record<string, SuggestionRating>>({});
+
+  const {
+    canvasRef: processCanvasRef,
+    ready: faceModelReady,
+    error: faceModelError,
+    liveEmotion,
+    getSummary: getFacialSummary,
+  } = useFaceLandmarkerAnalysis(videoRef, mirror, isRecording);
+
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY ?? "";
+  const modelName = import.meta.env.VITE_GEMINI_MODEL ?? DEFAULT_GEMINI_MODEL;
 
   useEffect(() => {
-    let cancelled = false;
+    scriptRef.current = script;
+    intendedRef.current = intendedDirection;
+    guidanceRef.current = guidanceSlider;
+  }, [script, intendedDirection, guidanceSlider]);
+
+  useEffect(() => {
+    let stream: MediaStream | null = null;
     (async () => {
-      const opts = {
-        baseOptions: {
-          modelAssetPath: FACE_LANDMARKER_MODEL_URL,
-          delegate: "GPU" as const,
-        },
-        runningMode: "VIDEO" as const,
-        outputFaceBlendshapes: true,
-        numFaces: 1,
-      };
       try {
-        const fileset = await FilesetResolver.forVisionTasks(MEDIAPIPE_WASM_ROOT);
-        let landmarker: FaceLandmarker;
-        try {
-          landmarker = await FaceLandmarker.createFromOptions(fileset, opts);
-        } catch {
-          landmarker = await FaceLandmarker.createFromOptions(fileset, {
-            ...opts,
-            baseOptions: { ...opts.baseOptions, delegate: "CPU" },
-          });
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "user" },
+          audio: true,
+        });
+        streamRef.current = stream;
+        setStreamReady(true);
+        setMediaError(null);
+        const v = videoRef.current;
+        if (v) {
+          v.srcObject = stream;
+          await v.play();
         }
-        if (cancelled) {
-          landmarker.close();
-          return;
-        }
-        landmarkerRef.current = landmarker;
-        setEngineReady(true);
       } catch (e) {
-        setLoadError(e instanceof Error ? e.message : String(e));
+        setMediaError(e instanceof Error ? e.message : String(e));
       }
     })();
     return () => {
-      cancelled = true;
-      landmarkerRef.current?.close();
-      landmarkerRef.current = null;
+      stream?.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
     };
   }, []);
 
   useEffect(() => {
-    if (!engineReady) return;
-    const video = videoRef.current;
-    if (!video) return;
+    if (!isRecording) return;
+    const t0 = Date.now();
+    const id = window.setInterval(() => {
+      setRecordingMs(Date.now() - t0);
+    }, 100);
+    return () => clearInterval(id);
+  }, [isRecording]);
 
-    let cancelled = false;
-    (async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "user" },
-          audio: false,
-        });
-        if (cancelled) {
-          stream.getTracks().forEach((t) => t.stop());
-          return;
-        }
-        video.srcObject = stream;
-        await video.play();
-        setCameraError(null);
-      } catch (e) {
-        setCameraError(e instanceof Error ? e.message : String(e));
-      }
-    })();
+  const processRecording = async (
+    blob: Blob,
+    facialSummary: FacialTakeSummary | null,
+  ) => {
+    if (!import.meta.env.VITE_GEMINI_API_KEY) {
+      setFeedbackError("Add VITE_GEMINI_API_KEY to web/.env to analyze takes.");
+      return;
+    }
+    setAnalyzing(true);
+    setFeedbackError(null);
+    try {
+      const metrics = await metricsFromRecording(blob);
+      const result = await generateRehearsalFeedbackFromBlob(blob, {
+        apiKey,
+        modelName,
+        script: scriptRef.current,
+        intendedDirection: intendedRef.current,
+        metrics,
+        facialSummary,
+        guidanceSlider: guidanceRef.current,
+      });
+      setFeedback(result);
+      setRatings({});
+    } catch (e) {
+      setFeedbackError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setAnalyzing(false);
+    }
+  };
 
-    return () => {
-      cancelled = true;
-      const stream = video.srcObject as MediaStream | null;
-      stream?.getTracks().forEach((t) => t.stop());
-      video.srcObject = null;
+  const startRecording = () => {
+    const stream = streamRef.current;
+    if (!stream) return;
+    const audioTracks = stream.getAudioTracks();
+    if (audioTracks.length === 0) {
+      setFeedbackError("No microphone track found.");
+      return;
+    }
+    chunksRef.current = [];
+    const mime = pickAudioRecorderMime();
+    const audioStream = new MediaStream(audioTracks);
+    const mr = new MediaRecorder(audioStream, mime ? { mimeType: mime } : undefined);
+    recorderRef.current = mr;
+    mr.ondataavailable = (e) => {
+      if (e.data.size > 0) chunksRef.current.push(e.data);
     };
-  }, [engineReady]);
-
-  useEffect(() => {
-    if (!engineReady) return;
-    let raf = 0;
-
-    const loop = () => {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-      const landmarker = landmarkerRef.current;
-      if (!video || !canvas || !landmarker) {
-        raf = requestAnimationFrame(loop);
-        return;
-      }
-
-      if (video.readyState < 2) {
-        raf = requestAnimationFrame(loop);
-        return;
-      }
-
-      const w = video.videoWidth;
-      const h = video.videoHeight;
-      if (w === 0 || h === 0) {
-        raf = requestAnimationFrame(loop);
-        return;
-      }
-
-      canvas.width = w;
-      canvas.height = h;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) {
-        raf = requestAnimationFrame(loop);
-        return;
-      }
-
-      ctx.save();
-      if (mirror) {
-        ctx.translate(w, 0);
-        ctx.scale(-1, 1);
-      }
-      ctx.drawImage(video, 0, 0, w, h);
-      ctx.restore();
-
-      const ts = performance.now();
-      let result: FaceLandmarkerResult;
-      try {
-        result = landmarker.detectForVideo(canvas, ts);
-      } catch {
-        raf = requestAnimationFrame(loop);
-        return;
-      }
-
-      const blendshapes = classificationsToBlendshapes(result);
-      let overlayVision: VisionEmotion | null = null;
-
-      if (blendshapes) {
-        const { primaryEmotion, confidence } = mapBlendshapesToEmotion(blendshapes);
-        overlayVision = {
-          timestamp: Date.now() / 1000,
-          blendshapes,
-          primaryEmotion,
-          confidence,
-        };
-
-        const color = EMOTION_COLOR[primaryEmotion as keyof typeof EMOTION_COLOR] ?? "#6366f1";
-        const emoji = EMOTION_EMOJI[primaryEmotion as keyof typeof EMOTION_EMOJI] ?? "";
-        const pct = Math.round(confidence * 100);
-        const label = `${emoji} ${primaryEmotion}  ${pct}%`;
-
-        ctx.save();
-        ctx.setTransform(1, 0, 0, 1, 0, 0);
-        ctx.font = "600 20px Syne, system-ui, sans-serif";
-        ctx.fillStyle = color;
-        ctx.shadowColor = "rgba(0,0,0,0.85)";
-        ctx.shadowBlur = 6;
-        ctx.fillText(label, 20, 40);
-        ctx.restore();
-      }
-
-      const now = Date.now();
-      if (now - lastUiMsRef.current >= 100) {
-        lastUiMsRef.current = now;
-        setVision(overlayVision);
-      }
-
-      raf = requestAnimationFrame(loop);
+    mr.onstop = () => {
+      const blob = new Blob(chunksRef.current, { type: mr.mimeType });
+      const facialSummary = getFacialSummary();
+      void processRecording(blob, facialSummary);
     };
+    setRecordingMs(0);
+    setFeedback(null);
+    setFeedbackError(null);
+    mr.start();
+    setIsRecording(true);
+  };
 
-    raf = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(raf);
-  }, [engineReady, mirror]);
+  const stopRecording = () => {
+    const mr = recorderRef.current;
+    if (mr && mr.state !== "inactive") {
+      mr.stop();
+    }
+    setIsRecording(false);
+    recorderRef.current = null;
+  };
+
+  const onRate = (id: string, rating: Exclude<SuggestionRating, null>) => {
+    setRatings((prev) => ({
+      ...prev,
+      [id]: prev[id] === rating ? null : rating,
+    }));
+  };
 
   return (
     <div className="app-root">
-      {loadError && (
-        <div className="banner error">
-          Failed to load vision engine: {loadError}
-        </div>
-      )}
-      {cameraError && !loadError && (
-        <div className="banner error">Camera: {cameraError}</div>
-      )}
-
       <header className="hero">
         <h1 className="main-title">CharacterLab</h1>
-        <p className="sub-title">Real-Time Emotion Mirror · Vision Engine</p>
+        <p className="sub-title">Solo rehearsal companion · voice-first</p>
       </header>
 
-      <div className="layout">
-        <section className="video-column">
-          <label className="mirror-toggle">
-            <input
-              type="checkbox"
-              checked={mirror}
-              onChange={(e) => setMirror(e.target.checked)}
-            />
-            Mirror mode
-          </label>
-          <div className="video-shell">
-            <video ref={videoRef} className="hidden-video" playsInline muted />
-            <canvas ref={canvasRef} className="mirror-canvas" />
-            {!engineReady && !loadError && (
-              <p className="overlay-hint">Loading vision model…</p>
-            )}
-          </div>
-        </section>
+      <Disclaimer />
 
-        <aside className="stats-column">
-          <div className="section-label">Face</div>
-          <div
-            className="emotion-card"
-            style={
-              vision
-                ? {
-                    borderColor: `${EMOTION_COLOR[vision.primaryEmotion as keyof typeof EMOTION_COLOR] ?? "#6366f1"}33`,
-                  }
-                : undefined
-            }
-          >
-            <div className="emotion-label">Detected Emotion</div>
-            {vision ? (
-              <>
-                <div
-                  className="emotion-value"
-                  style={{
-                    color:
-                      EMOTION_COLOR[vision.primaryEmotion as keyof typeof EMOTION_COLOR] ??
-                      "#f8fafc",
-                  }}
-                >
-                  {EMOTION_EMOJI[vision.primaryEmotion as keyof typeof EMOTION_EMOJI]}{" "}
-                  {vision.primaryEmotion}
-                </div>
-                <div className="emotion-conf">
-                  {(vision.confidence * 100).toFixed(1)}% confidence
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="emotion-value muted">—</div>
-                <div className="emotion-conf">Waiting for camera…</div>
-              </>
-            )}
-          </div>
-        </aside>
+      {!apiKey ? (
+        <div className="banner warn">
+          Set <code className="inline-code">VITE_GEMINI_API_KEY</code> in{" "}
+          <code className="inline-code">web/.env</code> to generate partner feedback.
+        </div>
+      ) : null}
+
+      {mediaError ? (
+        <div className="banner error" role="alert">
+          Could not access camera or microphone: {mediaError}
+        </div>
+      ) : null}
+
+      {faceModelError ? (
+        <div className="banner warn" role="status">
+          Face ML unavailable ({faceModelError}). You can still record; feedback will use audio only.
+        </div>
+      ) : null}
+
+      <div className="layout-main">
+        <div className="col-left">
+          <ScriptPanel
+            script={script}
+            intendedDirection={intendedDirection}
+            onScriptChange={setScript}
+            onIntendedChange={setIntendedDirection}
+          />
+        </div>
+        <div className="col-center">
+          <RecorderPanel
+            videoRef={videoRef}
+            processCanvasRef={processCanvasRef}
+            mirror={mirror}
+            onMirrorChange={setMirror}
+            isRecording={isRecording}
+            recordingMs={recordingMs}
+            onStart={startRecording}
+            onStop={stopRecording}
+            canRecord={streamReady && !analyzing}
+            liveFaceLabel={liveEmotion}
+            faceModelReady={faceModelReady}
+            faceModelFailed={faceModelError !== null}
+          />
+        </div>
+        <div className="col-right">
+          <FeedbackSection
+            guidanceSlider={guidanceSlider}
+            onGuidanceChange={setGuidanceSlider}
+            analyzing={analyzing}
+            error={feedbackError}
+            feedback={feedback}
+            ratings={ratings}
+            onRate={onRate}
+          />
+        </div>
       </div>
     </div>
   );
 }
-
-export default App;

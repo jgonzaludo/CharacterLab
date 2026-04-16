@@ -1,6 +1,6 @@
 /**
  * Heuristic mapping of MediaPipe blendshapes to discrete emotions.
- * Ported from core/vision_engine.py — keep in sync with Python.
+ * Aligned with core/vision_engine.py — keep in sync with Python.
  */
 export type EmotionName =
   | "Joy"
@@ -16,17 +16,11 @@ export interface EmotionResult {
   confidence: number;
 }
 
-export function mapBlendshapesToEmotion(
-  bs: Record<string, number>,
-): EmotionResult {
+export function mapBlendshapesToEmotion(bs: Record<string, number>): EmotionResult {
   const scores: Record<Exclude<EmotionName, "Neutral">, number> = {
-    Joy:
-      ((bs.mouthSmileLeft ?? 0) + (bs.mouthSmileRight ?? 0)) / 2,
+    Joy: ((bs.mouthSmileLeft ?? 0) + (bs.mouthSmileRight ?? 0)) / 2,
     Sadness:
-      ((bs.browInnerUp ?? 0) +
-        (bs.mouthFrownLeft ?? 0) +
-        (bs.mouthFrownRight ?? 0)) /
-      3,
+      ((bs.browInnerUp ?? 0) + (bs.mouthFrownLeft ?? 0) + (bs.mouthFrownRight ?? 0)) / 3,
     Anger:
       ((bs.browDownLeft ?? 0) +
         (bs.browDownRight ?? 0) +
@@ -40,13 +34,9 @@ export function mapBlendshapesToEmotion(
         (bs.eyeWideRight ?? 0) +
         (bs.jawOpen ?? 0)) /
       4.5,
-    Disgust:
-      ((bs.noseSneerLeft ?? 0) + (bs.noseSneerRight ?? 0)) / 2,
+    Disgust: ((bs.noseSneerLeft ?? 0) + (bs.noseSneerRight ?? 0)) / 2,
     Fear:
-      ((bs.browInnerUp ?? 0) +
-        (bs.eyeWideLeft ?? 0) +
-        (bs.eyeWideRight ?? 0)) /
-      3,
+      ((bs.browInnerUp ?? 0) + (bs.eyeWideLeft ?? 0) + (bs.eyeWideRight ?? 0)) / 3,
   };
 
   const primary = (
