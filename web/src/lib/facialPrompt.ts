@@ -1,4 +1,5 @@
 import type { FacialTakeSummary } from "../types";
+import { formatEmotionTimelineForPrompt } from "./emotionTimelineFormat";
 
 /** Human-readable block for the Gemini prompt (no JSON). */
 export function formatFacialSummaryForPrompt(f: FacialTakeSummary | null): string {
@@ -22,10 +23,14 @@ export function formatFacialSummaryForPrompt(f: FacialTakeSummary | null): strin
         .join(", ")}.`
     : "";
 
+  const timeline = f.emotionTimeline?.length
+    ? ` Timeline (seconds from the start of the attached audio take; heuristic face labels, ~same clock as recording): ${formatEmotionTimelineForPrompt(f.emotionTimeline)}.`
+    : "";
+
   return (
     `MediaPipe Face Landmarker → heuristic emotion labels over the recorded take (not clinical, not ground truth). ` +
     `Frames with a detected face: ${f.framesWithFace} / ${f.framesSampled} sampled. ` +
-    `Label histogram (count of frames): ${dist}. Dominant: ${f.dominantEmotion ?? "n/a"}.${snap} ` +
-    `Use as soft visual context with the audio; do not treat labels as definitive feelings.`
+    `Label histogram (count of frames): ${dist}. Dominant: ${f.dominantEmotion ?? "n/a"}.${snap}${timeline} ` +
+    `Use timed labels to relate moments in the audio to approximate on-camera expression; prioritize listening; labels are not definitive feelings.`
   );
 }

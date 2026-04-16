@@ -5,8 +5,11 @@ import {
   type FaceLandmarkerResult,
 } from "@mediapipe/tasks-vision";
 import { mapBlendshapesToEmotion } from "../emotionFromBlendshapes";
-import type { FacialTakeSummary } from "../types";
+import type { EmotionTimelineSample, FacialTakeSummary } from "../types";
 import { FACE_LANDMARKER_MODEL_URL, MEDIAPIPE_WASM_ROOT } from "../visionConstants";
+
+/** Min seconds between timeline samples unless the label changes (keeps prompt size reasonable). */
+const TIMELINE_MIN_GAP_SEC = 0.12;
 
 function blendshapesFromResult(
   result: FaceLandmarkerResult,
@@ -25,10 +28,17 @@ type Agg = {
   framesSampled: number;
   framesWithFace: number;
   lastBlendshapes: Record<string, number> | null;
+  timeline: EmotionTimelineSample[];
 };
 
 function emptyAgg(): Agg {
-  return { counts: {}, framesSampled: 0, framesWithFace: 0, lastBlendshapes: null };
+  return {
+    counts: {},
+    framesSampled: 0,
+    framesWithFace: 0,
+    lastBlendshapes: null,
+    timeline: [],
+  };
 }
 
 function summarizeAggregation(agg: Agg): FacialTakeSummary {
@@ -38,7 +48,7 @@ function summarizeAggregation(agg: Agg): FacialTakeSummary {
       framesSampled: 0,
       framesWithFace: 0,
       dominantEmotion: null,
-      snapshotBlendshapes: undefined,
+      emotionTimeline: [],
       approximate: true,
     };
   }
@@ -49,6 +59,7 @@ function summarizeAggregation(agg: Agg): FacialTakeSummary {
     framesSampled: agg.framesSampled,
     framesWithFace: agg.framesWithFace,
     dominantEmotion: dominant,
+    emotionTimeline: agg.timeline.length ? [...agg.timeline] : undefined,
     snapshotBlendshapes: agg.lastBlendshapes ? { ...agg.lastBlendshapes } : undefined,
     approximate: agg.framesWithFace === 0,
   };
@@ -63,6 +74,8 @@ export function useFaceLandmarkerAnalysis(
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const aggRef = useRef<Agg>(emptyAgg());
   const lastUiMs = useRef(0);
+  const recordingT0Ref = useRef<number | null>(null);
+  const lastTimelinePushRef = useRef<{ tSec: number; emotion: string } | null>(null);
 
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -71,6 +84,8 @@ export function useFaceLandmarkerAnalysis(
   useEffect(() => {
     if (!isRecording) return;
     aggRef.current = emptyAgg();
+    recordingT0Ref.current = performance.now();
+    lastTimelinePushRef.current = null;
   }, [isRecording]);
 
   useEffect(() => {
@@ -175,6 +190,18 @@ export function useFaceLandmarkerAnalysis(
           aggRef.current.lastBlendshapes = bs;
           aggRef.current.counts[primaryEmotion] =
             (aggRef.current.counts[primaryEmotion] ?? 0) + 1;
+
+          const t0 = recordingT0Ref.current;
+          if (t0 != null) {
+            const tSec = (performance.now() - t0) / 1000;
+            const prev = lastTimelinePushRef.current;
+            const gapOk = !prev || tSec - prev.tSec >= TIMELINE_MIN_GAP_SEC;
+            const labelChanged = !prev || prev.emotion !== primaryEmotion;
+            if (gapOk || labelChanged) {
+              aggRef.current.timeline.push({ tSec, emotion: primaryEmotion });
+              lastTimelinePushRef.current = { tSec, emotion: primaryEmotion };
+            }
+          }
         }
       } else if (isRecording) {
         aggRef.current.framesSampled += 1;

@@ -98,6 +98,7 @@ Rules:
 - Describe how the performance may *read* to a listener and offer exploratory alternatives.
 - Ground suggestions in audible cues (pace, breath, emphasis, clarity) and script context.
 - You may reference approximate on-camera face cues when provided; they are ML heuristics, not truth—prioritize what you hear.
+- When emotion timestamps (seconds from start of the audio) are provided, relate them to what you hear at those moments in the recording (e.g. line, breath, emphasis)—do not invent precise word-level alignment if uncertain.
 - If voice metrics look unreliable, say so lightly and rely more on listening.
 - Output valid JSON only, matching this shape exactly:
 ${JSON_SHAPE}`;
@@ -123,6 +124,13 @@ Guidance style (${guidanceSlider}/100, 0=exploratory, 100=directive):
 ${guidanceInstructions(guidanceSlider)}
 
 Listen to the attached recording and respond.`;
+
+  if (import.meta.env.DEV) {
+    console.log(
+      "[CharacterLab] Gemini text prompt (audio sent separately as inlineData):\n\n",
+      userText,
+    );
+  }
 
   const result = await model.generateContent([
     {
