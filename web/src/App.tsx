@@ -31,6 +31,10 @@ export default function App() {
   const [streamReady, setStreamReady] = useState(false);
   const [mediaError, setMediaError] = useState<string | null>(null);
 
+  const [theme, setTheme] = useState<"dark" | "light">(() => {
+    return (localStorage.getItem("cl-theme") as "dark" | "light") ?? "dark";
+  });
+
   const [isRecording, setIsRecording] = useState(false);
   const [recordingMs, setRecordingMs] = useState(0);
 
@@ -50,6 +54,11 @@ export default function App() {
 
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY ?? "";
   const modelName = import.meta.env.VITE_GEMINI_MODEL ?? DEFAULT_GEMINI_MODEL;
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("cl-theme", theme);
+  }, [theme]);
 
   useEffect(() => {
     scriptRef.current = script;
@@ -169,8 +178,17 @@ export default function App() {
   return (
     <div className="app-root">
       <header className="hero">
-        <h1 className="main-title">CharacterLab</h1>
-        <p className="sub-title">Solo rehearsal companion · voice-first</p>
+        <div>
+          <h1 className="main-title">CharacterLab</h1>
+          <p className="sub-title">Solo rehearsal companion · voice-first</p>
+        </div>
+        <button
+          type="button"
+          className="theme-toggle"
+          onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
+        >
+          {theme === "dark" ? "Light mode" : "Dark mode"}
+        </button>
       </header>
 
       <Disclaimer />
