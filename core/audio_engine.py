@@ -2,6 +2,7 @@ import torch
 import numpy as np
 import time
 import os
+import librosa
 from dotenv import load_dotenv
 from faster_whisper import WhisperModel
 from transformers import pipeline
@@ -13,43 +14,46 @@ class AudioEngine:
     def __init__(self, whisper_model_size="tiny", emotion_model_id="harshit345/xlsr-wav2vec-speech-emotion-recognition"):
         """
         Initializes Faster-Whisper and Transformers pipeline for audio analysis.
-        Uses Wav2Vec2 for emotion detection to avoid proprietary SpeechBrain lazy import issues.
         """
         # Faster-Whisper on CPU
         self.whisper = WhisperModel(whisper_model_size, device="cpu", compute_type="int8")
         
         # Audio Classification Pipeline (Wav2Vec2)
-        # Load token from environment
         hf_token = os.getenv("HF_TOKEN")
-        
-        # This will download the model (~300MB) on first run
         self.classifier = pipeline("audio-classification", model=emotion_model_id, token=hf_token)
         
-        self.sample_rate = 16000
+        self.target_sr = 16000
         self.buffer = np.array([], dtype=np.float32)
 
-    def process_audio(self, audio_chunk: np.ndarray) -> AudioEmotion:
+    def process_audio(self, audio_chunk: np.ndarray, source_sr: int = 16000) -> AudioEmotion:
         """
-        Processes a chunk of audio (16kHz mono).
-        Runs inference every 2 seconds.
+        Processes a chunk of audio. Resamples to 16kHz if necessary.
+        Runs inference when identifying ~2.5 seconds of audio.
         """
+        # Resample if source SR isn't 16k
+        if source_sr != self.target_sr:
+            audio_chunk = librosa.resample(audio_chunk, orig_sr=source_sr, target_sr=self.target_sr)
+
         self.buffer = np.append(self.buffer, audio_chunk)
         
-        # Minimum 2 seconds for meaningful analysis
-        if len(self.buffer) < self.sample_rate * 2:
+        # We need at least 2.5 seconds for good whisper/emotion context
+        if len(self.buffer) < self.target_sr * 2.5:
             return None
             
-        # Extract last 2 seconds
-        segment = self.buffer[-self.sample_rate * 2:]
-        # Overlap buffer
-        self.buffer = self.buffer[-self.sample_rate:]
+        # Extract the segment to process
+        segment = self.buffer.copy()
+        # Keep a 0.5s overlap for the next window to avoid cutting words
+        self.buffer = self.buffer[-int(self.target_sr * 0.5):]
         
         # 1. Faster-Whisper Transcription
-        segments, _ = self.whisper.transcribe(segment, beam_size=1)
+        # We use a slightly larger beam_size for better accuracy
+        segments, _ = self.whisper.transcribe(segment, beam_size=2, language="en")
         transcription = " ".join([s.text for s in segments]).strip()
         
+        if not transcription:
+            return None
+
         # 2. Emotion Recognition (Wav2Vec2)
-        # pipeline accepts numpy array directly
         results = self.classifier(segment)
         
         if not results:

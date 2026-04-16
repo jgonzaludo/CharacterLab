@@ -42,6 +42,12 @@ st.markdown("""
 st.title("🎭 CharacterLab: Real-Time Emotion Mirror")
 st.caption("Phase 1: Multimodal Sensing Foundation")
 
+# --- Shared State for Callbacks ---
+class AppState:
+    flip_camera = False
+
+app_state = AppState()
+
 # --- Engine Initialization ---
 @st.cache_resource
 def load_engines():
@@ -54,7 +60,6 @@ except Exception as e:
     st.stop()
 
 # --- Communication Queues ---
-# Python's Queue is thread-safe
 vision_queue = queue.Queue()
 audio_queue = queue.Queue()
 
@@ -62,6 +67,10 @@ audio_queue = queue.Queue()
 def video_frame_callback(frame: av.VideoFrame) -> av.VideoFrame:
     img = frame.to_ndarray(format="bgr24")
     
+    # Flip if requested
+    if app_state.flip_camera:
+        img = cv2.flip(img, 1)
+
     # Process for vision (MediaPipe expects RGB)
     rgb_img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     timestamp_ms = int(time.time() * 1000)
@@ -83,13 +92,10 @@ def video_frame_callback(frame: av.VideoFrame) -> av.VideoFrame:
     return av.VideoFrame.from_ndarray(img, format="bgr24")
 
 def audio_frame_callback(frame: av.AudioFrame) -> av.AudioFrame:
-    # Buffer and process audio
-    # For Phase 1, we output to queue for the UI to pick up
     try:
         audio_data = frame.to_ndarray().flatten().astype(np.float32) / 32768.0
-        # Audio engine handles resampling or we assume 16k for now in this prototype
-        # Real-world might need resampling if frame.sample_rate != 16000
-        audio_state = audio_engine.process_audio(audio_data)
+        # Pass the actual sample rate to handle resampling
+        audio_state = audio_engine.process_audio(audio_data, source_sr=frame.sample_rate)
         if audio_state:
             audio_queue.put(audio_state)
     except Exception as e:
@@ -98,6 +104,9 @@ def audio_frame_callback(frame: av.AudioFrame) -> av.AudioFrame:
     return frame
 
 # --- UI Layout ---
+st.sidebar.header("Controls")
+app_state.flip_camera = st.sidebar.checkbox("Flip Camera (Mirror Mode)", value=True)
+
 col_vid, col_stats = st.columns([2, 1])
 
 with col_vid:
