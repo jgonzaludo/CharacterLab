@@ -31,3 +31,15 @@ export function isModelNotFoundError(err: unknown): boolean {
     s.includes("is not found for API version")
   );
 }
+
+export function isRetryableGeminiError(err: unknown): boolean {
+  const s = err instanceof Error ? err.message : String(err);
+  return (
+    s.includes("503") ||
+    s.includes("429") ||
+    /high demand/i.test(s) ||
+    /temporar/i.test(s) ||
+    /try again later/i.test(s) ||
+    /overloaded/i.test(s)
+  );
+}

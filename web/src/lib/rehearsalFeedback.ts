@@ -1,7 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import type { FacialTakeSummary, RehearsalFeedbackResult, VocalMetrics } from "../types";
 import { formatFacialSummaryForPrompt } from "./facialPrompt";
-import { isModelNotFoundError, modelCandidates } from "./geminiModels";
+import { isModelNotFoundError, isRetryableGeminiError, modelCandidates } from "./geminiModels";
 import { parseJsonFromModelText } from "./parseJsonFromModel";
 
 function blobToBase64(blob: Blob): Promise<string> {
@@ -165,6 +165,31 @@ Listen to the attached recording and respond.`;
   return parsed;
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+async function generateWithRetry(
+  params: Parameters<typeof generateRehearsalFeedbackForModel>[0],
+): Promise<RehearsalFeedbackResult> {
+  const maxAttempts = 3;
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await generateRehearsalFeedbackForModel(params);
+    } catch (e) {
+      lastError = e;
+      if (!isRetryableGeminiError(e) || attempt === maxAttempts) {
+        throw e;
+      }
+      const jitter = Math.floor(Math.random() * 200);
+      const backoffMs = 500 * 2 ** (attempt - 1) + jitter;
+      await sleep(backoffMs);
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error("Gemini request failed.");
+}
+
 export async function generateRehearsalFeedback(params: {
   apiKey: string;
   modelName: string;
@@ -180,12 +205,17 @@ export async function generateRehearsalFeedback(params: {
   let lastError: unknown;
   for (const name of candidates) {
     try {
-      return await generateRehearsalFeedbackForModel({ ...params, modelName: name });
+      return await generateWithRetry({ ...params, modelName: name });
     } catch (e) {
       lastError = e;
-      if (isModelNotFoundError(e)) continue;
+      if (isModelNotFoundError(e) || isRetryableGeminiError(e)) continue;
       throw e;
     }
+  }
+  if (isRetryableGeminiError(lastError)) {
+    throw new Error(
+      "Gemini is currently under high demand. We retried and tried fallback models, but none were available. Please try again in a moment.",
+    );
   }
   throw lastError instanceof Error
     ? lastError
