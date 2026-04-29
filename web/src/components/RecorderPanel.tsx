@@ -9,6 +9,7 @@ type Props = {
   recordingMs: number;
   onStart: () => void;
   onStop: () => void;
+  onCancel: () => void;
   canRecord: boolean;
   liveFaceLabel: string | null;
   faceModelReady: boolean;
@@ -31,6 +32,7 @@ export function RecorderPanel({
   recordingMs,
   onStart,
   onStop,
+  onCancel,
   canRecord,
   liveFaceLabel,
   faceModelReady,
@@ -81,9 +83,14 @@ export function RecorderPanel({
             Record take
           </button>
         ) : (
-          <button type="button" className="btn btn-stop" onClick={onStop}>
-            Stop
-          </button>
+          <div className="recording-buttons">
+            <button type="button" className="btn btn-stop" onClick={onStop}>
+              Stop
+            </button>
+            <button type="button" className="btn btn-cancel" onClick={onCancel}>
+              Cancel take
+            </button>
+          </div>
         )}
         <p className="recorder-hint">
           Audio drives prosody analysis. MediaPipe face blendshapes are summarized over your take

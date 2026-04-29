@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import type {
   RehearsalFeedbackResult,
   SuggestionRating,
@@ -22,6 +23,27 @@ export function FeedbackSection({
   ratings,
   onRate,
 }: Props) {
+  const [progressPct, setProgressPct] = useState(0);
+
+  useEffect(() => {
+    if (!analyzing) {
+      setProgressPct(100);
+      const id = window.setTimeout(() => setProgressPct(0), 350);
+      return () => window.clearTimeout(id);
+    }
+
+    setProgressPct(8);
+    const id = window.setInterval(() => {
+      setProgressPct((prev) => {
+        if (prev >= 95) return prev;
+        const step = prev < 55 ? 6 : prev < 80 ? 3 : 1;
+        return Math.min(95, prev + step);
+      });
+    }, 280);
+
+    return () => window.clearInterval(id);
+  }, [analyzing]);
+
   return (
     <section className="panel feedback-panel">
       <div className="field">
@@ -55,7 +77,15 @@ export function FeedbackSection({
       </div>
 
       {analyzing ? (
-        <p className="status-line">Listening and drafting partner notes…</p>
+        <div className="loading-indicator" role="status" aria-live="polite">
+          <div className="progress-track" aria-hidden>
+            <div className="progress-fill" style={{ width: `${progressPct}%` }} />
+          </div>
+          <div className="progress-meta">
+            <p className="status-line">Listening and drafting partner notes…</p>
+            <span className="progress-percent">{progressPct}%</span>
+          </div>
+        </div>
       ) : null}
       {error ? (
         <div className="banner error" role="alert">

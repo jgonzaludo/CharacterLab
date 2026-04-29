@@ -20,6 +20,7 @@ export default function App() {
   const streamRef = useRef<MediaStream | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  const discardOnStopRef = useRef(false);
 
   const scriptRef = useRef("");
   const intendedRef = useRef("");
@@ -148,6 +149,12 @@ export default function App() {
       if (e.data.size > 0) chunksRef.current.push(e.data);
     };
     mr.onstop = () => {
+      const shouldDiscard = discardOnStopRef.current;
+      discardOnStopRef.current = false;
+      if (shouldDiscard) {
+        chunksRef.current = [];
+        return;
+      }
       const blob = new Blob(chunksRef.current, { type: mr.mimeType });
       const facialSummary = getFacialSummary();
       void processRecording(blob, facialSummary);
@@ -155,6 +162,7 @@ export default function App() {
     setRecordingMs(0);
     setFeedback(null);
     setFeedbackError(null);
+    discardOnStopRef.current = false;
     mr.start();
     setIsRecording(true);
   };
@@ -165,6 +173,18 @@ export default function App() {
       mr.stop();
     }
     setIsRecording(false);
+    recorderRef.current = null;
+  };
+
+  const cancelRecording = () => {
+    const mr = recorderRef.current;
+    discardOnStopRef.current = true;
+    if (mr && mr.state !== "inactive") {
+      mr.stop();
+    }
+    chunksRef.current = [];
+    setIsRecording(false);
+    setRecordingMs(0);
     recorderRef.current = null;
   };
 
@@ -231,6 +251,7 @@ export default function App() {
             recordingMs={recordingMs}
             onStart={startRecording}
             onStop={stopRecording}
+            onCancel={cancelRecording}
             canRecord={streamReady && !analyzing}
             liveFaceLabel={liveEmotion}
             faceModelReady={faceModelReady}
