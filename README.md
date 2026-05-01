@@ -1,49 +1,41 @@
-# 🎭 CharacterLab: Real-Time Emotion Mirror
+# Character Lab (web)
 
-CharacterLab is a multimodal rehearsal assistant designed to help actors and public speakers analyze their facial expressions and vocal prosody in real-time.
+Vite + React + TypeScript front end for Character Lab.
 
----
+## Prerequisites
 
-## 🚀 Quick Start
+- [Node.js](https://nodejs.org/) (LTS recommended) and npm
 
-### 1. Prerequisites
-- **Python 3.9+**
-- A **Hugging Face Read Token** (for downloading the audio emotion model)
-- A **Google Gemini API Key** (for Phase 2 coaching feedback)
+## Environment variables
 
-### 2. Installation
-Clone the repository and install the dependencies:
+The app reads the Gemini API key from Vite’s env surface as `VITE_GEMINI_API_KEY`.
+
+1. In the `web` folder, create a file named `.env` (same directory as `package.json`).
+2. Add your key in this form (no spaces around `=`):
+
+   ```bash
+   VITE_GEMINI_API_KEY=your_key_here
+   ```
+
+3. Obtain a key from [Google AI Studio](https://aistudio.google.com/apikey) (or your course’s documented source). Treat it like a password: do not commit `.env` or share the key publicly.
+
+Vite only exposes variables prefixed with `VITE_` to client code. After changing `.env`, restart the dev server so the new value is picked up.
+
+## Install and run
+
+From the `web` directory:
+
 ```bash
-pip install -r requirements.txt
+npm install
+npm run dev
 ```
 
-### 3. Configuration
-Create a `.env` file in the root directory (or update the existing one) with your credentials:
-```env
-HF_TOKEN=your_hugging_face_read_token
-GEMINI_API_KEY=your_google_gemini_api_key
-```
+Then open the URL Vite prints (usually `http://localhost:5173`).
 
-### 4. Running the App
-Launch the Streamlit interface:
-```bash
-streamlit run app.py
-```
+### Other scripts
 
----
-
-## 🛠 Features (Phase 1)
-- **Real-Time Facial Analysis**: tracks 52 MediaPipe blendshapes to predict primary emotions (Joy, Sadness, Anger, Surprise, etc.).
-- **Vocal Prosody Tracking**: Uses `Wav2Vec2` for speech emotion recognition and `Faster-Whisper` for live transcription.
-- **Mirror Mode**: Flip your camera directly in the UI for a natural rehearsal experience.
-- **Multimodal Sync**: Zero-lag synchronization between camera overlays and statistical metrics.
-
----
-
-## 📂 Project Structure
-- `app.py`: Main Streamlit application and UI logic.
-- `core/`:
-  - `vision_engine.py`: MediaPipe Face Landmarker implementation.
-  - `audio_engine.py`: Faster-Whisper and Emotion Classification logic.
-  - `schema.py`: Data models for cross-engine communication.
-- `models/`: Directory for local model weights (e.g., `face_landmarker.task`).
+| Command        | Description                |
+| -------------- | -------------------------- |
+| `npm run build`   | Typecheck and production build |
+| `npm run preview` | Serve the production build locally |
+| `npm run lint`    | Run ESLint                 |
